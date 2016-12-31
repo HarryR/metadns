@@ -1,0 +1,4 @@
+*.pyo
+*.pyc
+*.swo
+__pycache__

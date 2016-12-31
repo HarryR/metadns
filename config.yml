@@ -1,0 +1,9 @@
+options:
+  port: 5353
+  address: 0.0.0.0
+
+routes:
+
+ - regex: ([a-z]+)\.example\.com\.$
+   action: googlehttps
+

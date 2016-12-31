@@ -1,0 +1,3 @@
+dnslib
+pyyaml
+requests
