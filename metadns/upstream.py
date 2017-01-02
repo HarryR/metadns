@@ -98,4 +98,3 @@ class GoogleDnsHttpUpstream(HttpUpstream):
             ]))
             reply.add_answer(*RR.fromZone(zone_record))
         return reply
-            

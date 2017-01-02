@@ -13,13 +13,13 @@ LOG = logging.getLogger(__name__)
 
 
 class MetaDNS(object):
-    def __init__(self, args, config):        
-        self._args = args
+    def __init__(self, config):
+        self._options = config['options']
         self._router = DNSRouter.create_from_config(config)
 
     def run(self):
-        args = self._args
-        server = UDPServer(self._router, (args.address, args.port))
+        options = self._options
+        server = UDPServer(self._router, (options['address'], options['port']))
         try:
             server.serve_forever()
         except KeyboardInterrupt:

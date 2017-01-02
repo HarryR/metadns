@@ -39,7 +39,9 @@ class RegexMatcher(BaseMatcher):
         self._regex = regex
 
     def match_name(self, qname):
-        return self._regex.match(str(qname))
+        match = self._regex.match(str(qname))
+        if match:
+            return match.groupdict()
 
 
 class GlobMatcher(BaseMatcher):
@@ -48,7 +50,9 @@ class GlobMatcher(BaseMatcher):
         self._glob = glob_str
 
     def match_name(self, qname):
-        return qname.matchGlob(self._glob)
+        if qname.matchGlob(self._glob):
+            # XXX: glob returns nothing...
+            return dict()
 
 
 def create_matcher(options):
@@ -143,16 +147,19 @@ class DNSRouter(object):
         results = list()
         for route in self._routes:
             match = route.match(question)
-            if match:
+            if match is not None:
+                assert isinstance(match, dict)
                 results.append((route, match))
                 if route.final:
                     break
         return results
 
-    def dispatch(self, request):
+    def dispatch(self, request, extra_context=None):
         response = None
         question = request.q
         for route, context in self.lookup(question):
+            if extra_context:
+                context.update(extra_context)
             tmp_response = response or request.reply()
             reply = route.dispatch(context, question, tmp_response)
             if reply:

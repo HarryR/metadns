@@ -6,6 +6,16 @@ import logging
 import yaml
 
 
+def _args_to_config(args, config):
+    if 'options' not in config:
+        config['options'] = dict()
+    config['options']['port'] = args.port
+    config['options']['address'] = args.address
+    config['options']['loglevel'] = args.loglevel
+    config['options']['logconfig'] = args.logconfig
+    return config
+
+
 def _parse_args():
     """
     :returns: args, config - Arguments and config dictionary
@@ -23,7 +33,6 @@ def _parse_args():
     defaults = dict(
         port=53,
         address="0.0.0.0",
-        tcp=False,
         timeout=5
     )
     if initial_args.config:
@@ -44,12 +53,10 @@ def _parse_args():
     psr.add_argument("--address", "-a", metavar="<address>",
                      help="DNS server listen address (default:%r)" % (
                          defaults['address'],))
-    psr.add_argument("--tcp", action='store_true',
-                     help="TCP proxy (default: UDP only)")
     psr.add_argument("--timeout", "-t", type=float,
                      metavar="<timeout>",
                      help="Upstream timeout (default: 5s)")
-    psr.add_argument("--log-config", '-L', type=argparse.FileType('r'),
+    psr.add_argument("--logconfig", '-L', type=argparse.FileType('r'),
                      nargs='?', metavar='FILE',
                      help="Python logging config INI file")
     psr.add_argument('-q', '--quiet', action='store_true',
@@ -61,21 +68,24 @@ def _parse_args():
                      const=logging.DEBUG, default=logging.WARNING,
                      help="Log debugging messages")
     args = psr.parse_args(remaining_argv)
-    return args, config
+    return _args_to_config(args, config)
 
 
 def main():
-    args, config = _parse_args()
-
-    if args.log_config:
-        logging.config.fileConfig(args.log_config.name)
+    config = _parse_args()
+    options = config['options']
+    log_config = options.get('log_config')
+    if log_config:
+        if isinstance(log_config, str):
+            log_config = open(log_config, 'r')
+        logging.config.fileConfig(log_config.name)
     else:
-        logging.basicConfig(level=args.loglevel)
+        logging.basicConfig(level=options['loglevel'])
 
     # Import *after* configuring logging so that per-module getLogger
     # inherits the settings we've configured above
     from . import MetaDNS
-    return MetaDNS(args, config).run()
+    return MetaDNS(config).run()
 
 
 if __name__ == "__main__":
