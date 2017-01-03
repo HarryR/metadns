@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import copy
 from metadns import Resolver
-from dnslib import RR,QTYPE,RCODE
+from dnslib import RR, QTYPE, RCODE
 
 class ZoneResolver(Resolver):
     def __init__(self, **kwa):
