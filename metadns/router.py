@@ -58,6 +58,9 @@ class GlobMatcher(BaseMatcher):
 def create_matcher(options):
     qclass = options.get('qclass', 'IN')
     qtype = options.get('qtype', 'ANY')
+    # TODO: support formats like '<name:int>.*.example.com'
+    # A mix between glob and HTTP webapp style routes.
+    # These should be translated to regular expressions
     if 'glob' in options:
         return GlobMatcher(qclass, qtype, options.pop('glob'))
     elif 'name' in options:
@@ -110,6 +113,7 @@ class Route(object):
     def dispatch(self, context, query, reply):
         response = self._handler(context, query, reply)
         if isinstance(reply, str):
+            # Allow handler to respond with a string in BIND zone-format
             reply.add_answer(*RR.fromZone(response))
         else:
             reply = response
@@ -123,10 +127,11 @@ class DNSRouter(object):
     the correct handlers for a DNS name and type.
     """
     @classmethod
-    def create_from_config(cls, config):
+    def create_from_list(cls, routes):
+        assert isinstance(routes, (set, list))
         return DNSRouter([
             Route.create_with_options(X)
-            for X in config.get('routes', [])
+            for X in routes
         ])
 
     def __init__(self, routes=None):

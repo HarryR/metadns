@@ -10,6 +10,7 @@ class Upstream(object):
     def __init__(self, **kwa):
         self.endpoint = kwa.get('endpoint')
         self.timeout = float(kwa.get('timeout', 0.5))
+        assert self.timeout > 0.0
 
     def __call__(self, context, question, reply):
         return self.handle(context, question, reply)
