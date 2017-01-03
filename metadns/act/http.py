@@ -3,36 +3,24 @@ import logging
 import requests
 from dnslib import QTYPE, RR
 
+from metadns import Resolver
+
 LOG = logging.getLogger(__name__)
 
 
-class Upstream(object):
-    def __init__(self, **kwa):
-        self.endpoint = kwa.get('endpoint')
-        self.timeout = float(kwa.get('timeout', 0.5))
-        assert self.timeout > 0.0
-
-    def __call__(self, context, question, reply):
-        return self.handle(context, question, reply)
-
-    def handle(self, context, question, reply):
-        raise NotImplementedError()
-
-
-class HttpUpstream(Upstream):
+class HttpUpstream(object):
     """
     Delivers the request object to an upstream HTTP service and
     decodes the response object.
     """
     def __init__(self, **kwa):
-        super(HttpUpstream, self).__init__(**kwa)
+        self.endpoint = kwa.get('endpoint')
+        self.timeout = float(kwa.get('timeout', 0.5))
+        assert self.timeout > 0.0
         self._method = str(kwa.get('method', 'GET'))
         if self._method not in ['GET', 'POST']:
             raise ValueError('"method" must be one of: GET, POST')
         self._session = requests.Session()
-
-    def handle(self, context, question, reply):
-        raise NotImplementedError()
 
     def request(self, data, url_suffix='', **extra):
         # XXX: timeout given to Requests may not be the absolute timeout
@@ -57,7 +45,7 @@ class HttpUpstream(Upstream):
         return http_resp
 
 
-class GoogleDnsHttpUpstream(HttpUpstream):
+class GoogleDnsHttpResolver(HttpUpstream, Resolver):
     """
     Documentation:
      - https://developers.google.com/speed/public-dns/docs/dns-over-https
@@ -69,9 +57,9 @@ class GoogleDnsHttpUpstream(HttpUpstream):
         if 'endpoint' not in kwa:
             kwa['endpoint'] = 'https://dns.google.com/resolve'
         kwa['method'] = 'GET'
-        super(GoogleDnsHttpUpstream, self).__init__(**kwa)
+        super(GoogleDnsHttpResolver, self).__init__(**kwa)
 
-    def handle(self, context, question, reply):
+    def resolve(self, context, question, reply):
         qname = str(question.qname)
         qtype = QTYPE[question.qtype]
 

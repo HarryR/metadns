@@ -1,7 +1,11 @@
 # -*- coding: UTF-8 -*-
 from __future__ import print_function
-from .upstream import GoogleDnsHttpUpstream
 
 
 def googlehttps(**options):
-    return GoogleDnsHttpUpstream(**options)
+    from .act.http import GoogleDnsHttpResolver
+    return GoogleDnsHttpResolver(**options)
+
+def zone(**options):
+    from .act.zone import ZoneResolver
+    return ZoneResolver(**options)

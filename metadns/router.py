@@ -70,21 +70,33 @@ def create_matcher(options):
     raise RuntimeError("Unknown match type")
 
 
-def _create_handler(action, options):
+def _create_action(options):
     """
+    Create an action object from a dictionary of options
+    Alternately just an action name can be provided.
     :returns: constructs object to resolve DNS query
     """
-    # TODO: if '.' exists in action name, load from another module name
-    if isinstance(action, str):
-        modname = 'metadns.actions'
-        mod = __import__(modname, fromlist=[action])
-        klass = getattr(mod, action)
-        if klass is None:
-            raise RuntimeError("Cannot find action '{}' in {}".format(
-                action, modname))
+    # Load 'module' and action 'name' from options, handling both dict and str
+    module = 'metadns.actions'
+    if isinstance(options, str):
+        action_name = options
+        options = dict()
     else:
-        klass = action
+        assert isinstance(options, dict)
+        if 'name' not in options:
+            raise ValueError("No 'name' in action")
+        action_name = options.pop('name')
+        if 'module' in options:
+            module = options.pop('module')
+
+    # Construct instance of action, using remaining options
+    mod = __import__(module, fromlist=[action_name])
+    klass = getattr(mod, action_name)
+    if klass is None:
+        raise RuntimeError("Cannot find action '{}' in {}".format(
+            action_name, module))
     obj = klass(**options)
+
     assert callable(obj)
     return obj
 
@@ -97,10 +109,10 @@ class Route(object):
         self._final = bool(options.get('final', True))
 
     @classmethod
-    def create_with_options(cls, options):
+    def create_from_dict(cls, options):
         matcher = create_matcher(options)
         action = options.pop('action')
-        handler = _create_handler(action, options)
+        handler = _create_action(action)
         return Route(matcher, handler, options)
 
     @property
@@ -130,7 +142,7 @@ class DNSRouter(object):
     def create_from_list(cls, routes):
         assert isinstance(routes, (set, list))
         return DNSRouter([
-            Route.create_with_options(X)
+            Route.create_from_dict(X)
             for X in routes
         ])
 

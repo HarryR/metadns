@@ -12,6 +12,14 @@ from .router import DNSRouter
 LOG = logging.getLogger(__name__)
 
 
+class Resolver(object):
+    def __call__(self, context, question, reply):
+        return self.resolve(context, question, reply)
+
+    def resolve(self, context, question, reply):
+        raise NotImplementedError()
+
+
 class MetaDNS(object):
     def __init__(self, config):
         self._options = config.options

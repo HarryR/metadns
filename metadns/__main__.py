@@ -7,7 +7,6 @@ from .config import Config
 
 def main():
     config = Config.from_args()
-
     options = config.options
     if options.log_config:
         logging.config.fileConfig(options.log_config.name)
