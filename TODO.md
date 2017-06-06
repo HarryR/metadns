@@ -5,10 +5,22 @@ Config class
 
 
 Listeners:
-
  - type (dns, http)
  - protocol (tcp, udp)
  - listen (ip, port)
+
+
+Testing:
+ - unit tests
+ - test DNS query with dig, of various types
+ - ensure functionality of each action works
+ - Python 2.7/2.6 and 3.5/3.6
+
+
+Error handling:
+ - Define classes in metadns namespace for all DNS errors
+ - e.g. NXDOMAIN, SERVFAIL
+ - Throw these errors consistently, rather than returning None
 
 
 WSGI compatibility, for providing Google DNS over HTTPS style interface

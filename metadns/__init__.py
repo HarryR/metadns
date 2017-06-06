@@ -1,15 +1,8 @@
 # -*- coding: UTF-8 -*-
-from __future__ import print_function
-import logging
 import gevent.monkey
-
 gevent.monkey.patch_all()
 
 from .server import UDPServer
-from .router import DNSRouter
-
-
-LOG = logging.getLogger(__name__)
 
 
 class Resolver(object):

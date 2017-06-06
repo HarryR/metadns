@@ -1,11 +1,13 @@
 # -*- coding: UTF-8 -*-
-from __future__ import print_function
-
 
 def googlehttps(**options):
-    from .act.http import GoogleDnsHttpResolver
+    from .action.http import GoogleDnsHttpResolver
     return GoogleDnsHttpResolver(**options)
 
 def zone(**options):
-    from .act.zone import ZoneResolver
+    from .action.zone import ZoneResolver
     return ZoneResolver(**options)
+
+def namecoin(**options):
+	from .action.namecoin import NamecoinResolver
+	return NamecoinResolver(**options)

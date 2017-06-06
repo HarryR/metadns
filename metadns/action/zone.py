@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import copy
 from metadns import Resolver
-from dnslib import RR, QTYPE, RCODE
+from dnslib import RR, QTYPE
 
 class ZoneResolver(Resolver):
     def __init__(self, **kwa):
@@ -21,8 +21,9 @@ class ZoneResolver(Resolver):
         if zone_file:
             zone_str = open(zone_file, 'r').read()
 
+        records = RR.fromZone(zone_str, origin=self.origin, ttl=self.ttl)
         self.zone = [(rr.rname, QTYPE[rr.rtype], rr)
-                     for rr in RR.fromZone(zone_str, origin=self.origin, ttl=self.ttl)]
+                     for rr in records]
 
     def resolve(self, context, question, reply):
         """

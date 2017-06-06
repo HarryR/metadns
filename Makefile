@@ -9,6 +9,9 @@ clean:
 	find . -name '__pycache__' -exec rm -rf '{}' ';'
 	find . -name '*.pyc' -exec rm -f '{}' ';'
 
+test:
+	$(PYTHON) -m pytest
+
 docker-build:
 	docker build -t $(NAME) .
 
