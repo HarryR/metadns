@@ -41,7 +41,7 @@ class ServerBase(object):
     def handle(self, socket, address):
         raise NotImplementedError()
 
-    def resolve(self, request):
+    def resolve(self, request, context):
         if len(request.questions) != 1:
             # Whilst the packet format technically supports having more than
             # one record in the question section (see §4.1.2 of RFC 1035), in
@@ -53,7 +53,7 @@ class ServerBase(object):
             return reply
 
         try:
-            return self._router.dispatch(request)
+            return self._router.dispatch(request, context)
 
         except Exception:
             LOG.exception("While dispatching router")
@@ -61,9 +61,18 @@ class ServerBase(object):
             reply.header.rcode = getattr(RCODE, 'SERVFAIL')
             return reply
 
-    def get_reply(self, data):
+    def get_reply(self, data, address):
         request = DNSRecord.parse(data)
-        reply = self.resolve(request)
+        context = dict(
+            _client=dict(
+                ip=address[0],
+                port=address[1],
+                proto=self.protocol,
+            )
+        )
+        LOG.debug('Received request for %r from %r', request, address)
+        reply = self.resolve(request, context)
+        LOG.debug('Responding to %r with %r', request, reply)
         rdata = reply.pack()
         if self.truncate and len(rdata) > self.truncate:
             truncated_reply = reply.truncate()
@@ -72,6 +81,8 @@ class ServerBase(object):
 
 
 class BaseTCPServer(ServerBase):
+    protocol = 'tcp'
+
     def handle(self, socket, address):
         data = socket.recv(8192)
         length = struct.unpack("!H", bytes(data[:2]))[0]
@@ -80,7 +91,7 @@ class BaseTCPServer(ServerBase):
         data = data[2:]
 
         try:
-            rdata = self.get_reply(data)
+            rdata = self.get_reply(data, address)
             rdata = struct.pack("!H", len(rdata)) + rdata
             socket.sendall(rdata)
         except DNSError:
@@ -88,9 +99,11 @@ class BaseTCPServer(ServerBase):
 
 
 class BaseUDPServer(ServerBase):
+    protocol = 'udp'
+
     def handle(self, data, address):
         try:
-            rdata = self.get_reply(data)
+            rdata = self.get_reply(data, address)
             self._server.sendto(rdata, address)
         except DNSError:
             LOG.exception("While handling UDP response")

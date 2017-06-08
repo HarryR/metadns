@@ -39,7 +39,9 @@ class RegexMatcher(BaseMatcher):
         self._regex = regex
 
     def match_name(self, qname):
-        return self._regex.match(str(qname))
+        match = self._regex.match(str(qname))
+        if match:
+            return match.groupdict()
 
 
 class GlobMatcher(BaseMatcher):
@@ -48,12 +50,17 @@ class GlobMatcher(BaseMatcher):
         self._glob = glob_str
 
     def match_name(self, qname):
-        return qname.matchGlob(self._glob)
+        if qname.matchGlob(self._glob):
+            # XXX: glob returns nothing...
+            return dict()
 
 
 def create_matcher(options):
     qclass = options.get('qclass', 'IN')
     qtype = options.get('qtype', 'ANY')
+    # TODO: support formats like '<name:int>.*.example.com'
+    # A mix between glob and HTTP webapp style routes.
+    # These should be translated to regular expressions
     if 'glob' in options:
         return GlobMatcher(qclass, qtype, options.pop('glob'))
     elif 'name' in options:
@@ -63,21 +70,33 @@ def create_matcher(options):
     raise RuntimeError("Unknown match type")
 
 
-def _create_handler(action, options):
+def _create_action(options):
     """
+    Create an action object from a dictionary of options
+    Alternately just an action name can be provided.
     :returns: constructs object to resolve DNS query
     """
-    # TODO: if '.' exists in action name, load from another module name
-    if isinstance(action, str):
-        modname = 'metadns.actions'
-        mod = __import__(modname, fromlist=[action])
-        klass = getattr(mod, action)
-        if klass is None:
-            raise RuntimeError("Cannot find action '{}' in {}".format(
-                action, modname))
+    # Load 'module' and action 'name' from options, handling both dict and str
+    module = 'metadns.actions'
+    if isinstance(options, str):
+        action_name = options
+        options = dict()
     else:
-        klass = action
+        assert isinstance(options, dict)
+        if 'name' not in options:
+            raise ValueError("No 'name' in action")
+        action_name = options.pop('name')
+        if 'module' in options:
+            module = options.pop('module')
+
+    # Construct instance of action, using remaining options
+    mod = __import__(module, fromlist=[action_name])
+    klass = getattr(mod, action_name)
+    if klass is None:
+        raise RuntimeError("Cannot find action '{}' in {}".format(
+            action_name, module))
     obj = klass(**options)
+
     assert callable(obj)
     return obj
 
@@ -90,10 +109,10 @@ class Route(object):
         self._final = bool(options.get('final', True))
 
     @classmethod
-    def create_with_options(cls, options):
+    def create_from_dict(cls, options):
         matcher = create_matcher(options)
         action = options.pop('action')
-        handler = _create_handler(action, options)
+        handler = _create_action(action)
         return Route(matcher, handler, options)
 
     @property
@@ -106,6 +125,7 @@ class Route(object):
     def dispatch(self, context, query, reply):
         response = self._handler(context, query, reply)
         if isinstance(reply, str):
+            # Allow handler to respond with a string in BIND zone-format
             reply.add_answer(*RR.fromZone(response))
         else:
             reply = response
@@ -119,10 +139,11 @@ class DNSRouter(object):
     the correct handlers for a DNS name and type.
     """
     @classmethod
-    def create_from_config(cls, config):
+    def create_from_list(cls, routes):
+        assert isinstance(routes, (set, list))
         return DNSRouter([
-            Route.create_with_options(X)
-            for X in config.get('routes', [])
+            Route.create_from_dict(X)
+            for X in routes
         ])
 
     def __init__(self, routes=None):
@@ -143,16 +164,19 @@ class DNSRouter(object):
         results = list()
         for route in self._routes:
             match = route.match(question)
-            if match:
+            if match is not None:
+                assert isinstance(match, dict)
                 results.append((route, match))
                 if route.final:
                     break
         return results
 
-    def dispatch(self, request):
+    def dispatch(self, request, extra_context=None):
         response = None
         question = request.q
         for route, context in self.lookup(question):
+            if extra_context:
+                context.update(extra_context)
             tmp_response = response or request.reply()
             reply = route.dispatch(context, question, tmp_response)
             if reply:

@@ -7,3 +7,8 @@ routes:
  - regex: ([a-z]+)\.example\.com\.$
    action: googlehttps
 
+ - glob: "*.reddit.com"
+   action:
+      name: zone
+      zone:
+        - www.reddit.com. 60 IN A 1.2.3.4
